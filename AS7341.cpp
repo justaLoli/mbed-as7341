@@ -1,21 +1,24 @@
 /* implementation of basic functions for AS7341 driver
  * Copyright (c) 2025 justaLoli
  * Licensed under the BSD License(see license.txt).
- * The implementation is inspired by 
+ * The implementation is inspired by
  *     https://github.com/adafruit/Adafruit_AS7341
  */
 
-
 #include "AS7341.h"
 
-AS7341::AS7341() { i2c_address = 0x39 << 1; }
+AS7341::AS7341(PinName sda, PinName scl, uint32_t addr, uint32_t freq) {
+    i2c = new I2C(sda, scl);
+    i2c->frequency(freq);
+    i2c_address = addr;
+}
 
-AS7341::~AS7341() {}
+AS7341::~AS7341() { delete i2c; }
 
 bool AS7341::readRegister(char addr, char *val) {
-    if (i2c->write((char)i2c_address, (char*)&addr, 1, true) != 0)
+    if (i2c->write((char)i2c_address, (char *)&addr, 1, true) != 0)
         return false;
-    if (i2c->read((char)i2c_address, (char*)val, 1) != 0)
+    if (i2c->read((char)i2c_address, (char *)val, 1) != 0)
         return false;
     return true;
 }
@@ -24,16 +27,14 @@ bool AS7341::writeRegister(char addr, char val) {
     return (i2c->write(i2c_address, data, 2) == 0);
 };
 
-bool AS7341::begin(I2C &_i2c, char _i2c_address, char sensor_id) {
-    this->i2c = &_i2c;
-    this->i2c_address = _i2c_address;
+bool AS7341::begin() {
     // test i2c communication
     char test_byte = 0x00;
     if (i2c->write(i2c_address, &test_byte, 1) != 0) {
         // error happened
         return false;
     }
-    return _init(sensor_id);
+    return _init(0);
 }
 bool AS7341::_init(char sensor_id) {
     // 跳过了 make sure talking to right chip 的部分
@@ -41,7 +42,7 @@ bool AS7341::_init(char sensor_id) {
 }
 bool AS7341::powerEnable(bool enable_power) {
     char reg_val;
-    if (readRegister(AS7341_ENABLE, &reg_val) != 0)
+    if (not readRegister(AS7341_ENABLE, &reg_val))
         return false;
     // 设置或清除 bit 0（PON）
     if (enable_power) {
